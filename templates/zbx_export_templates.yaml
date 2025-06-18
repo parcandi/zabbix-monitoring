@@ -1,0 +1,48 @@
+zabbix_export:
+  version: '7.2'
+  template_groups:
+    - uuid: 7df96b18c230490a9a0a9e2307226338
+      name: Templates
+  templates:
+    - uuid: 63ac44609ed2418eb4314bcfed59bd02
+      template: 'MQTT Axis Camera'
+      name: 'MQTT Axis Camera'
+      groups:
+        - name: Templates
+      discovery_rules:
+        - uuid: 58b72460ce76400c84ccb889587e6124
+          name: 'Axis Camera Discovery'
+          type: ZABBIX_ACTIVE
+          key: axis.discovery
+          delay: '5m;30s/1-7,00:00-24:00'
+          lifetime_type: DELETE_NEVER
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: d19df08732634c5a878a91b22057c5e0
+              name: Connected
+              type: DEPENDENT
+              key: 'axis.connected[{#AXIS_SERIAL}]'
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var parsed = JSON.parse(value);
+                      return parsed .connected === true ? 1 : 0;
+              master_item:
+                key: 'mqtt.get["","axis/{#AXIS_SERIAL}/event/connection"]'
+              trigger_prototypes:
+                - uuid: 334341c5611a4c0ca924c28c39734b0f
+                  expression: 'last(/MQTT Axis Camera/axis.connected[{#AXIS_SERIAL}])=0'
+                  name: 'Camera {#AXIS_SERIAL} disconnected'
+                  priority: WARNING
+                  manual_close: 'YES'
+            - uuid: 7d18cf4e60ec439aa64345a8fead8286
+              name: '{#AXIS_SERIAL} JSON'
+              type: ZABBIX_ACTIVE
+              key: 'mqtt.get["","axis/{#AXIS_SERIAL}/event/connection"]'
+              value_type: TEXT
+          timeout: 30s
+      macros:
+        - macro: '{$DOWNTIME_THRESHOLD}'
+          value: '10'
